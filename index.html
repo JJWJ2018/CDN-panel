@@ -7,7 +7,7 @@
 <style>
   :root {
     --bg:#fff; --soft:#f6f7f9; --line:#e8eaed; --text:#1a1d21; --muted:#6b7280;
-    --dim:#9aa1ab; --accent:#2563eb; --accent-50:#eef3ff; --green:#0f9d58; --red:#d23f31;
+    --dim:#9aa1ab; --accent:#0396e0; --accent-50:#e6f4fc; --green:#0f9d58; --red:#d23f31;
     --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
   }
   * { box-sizing:border-box; }
@@ -34,7 +34,9 @@
     cursor:pointer; font-family:inherit; transition:background 120ms,border-color 120ms; }
   .btn svg { width:15px; height:15px; }
   .btn-primary { background:var(--accent); color:#fff; }
-  .btn-primary:hover { background:#1d5fe0; }
+  .btn-primary:hover { background:#0277b6; }
+  .btn-auto { width:auto; padding:9px 18px; }
+  .pub-wrap { text-align:center; padding:6px 0; }
   .btn-ghost { background:transparent; color:var(--text); border-color:var(--line); }
   .btn-ghost:hover { background:var(--soft); }
   .btn[disabled] { opacity:.55; cursor:default; }
@@ -107,7 +109,7 @@
 
   const cfg = window.PLUGIN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
-  let client = null, current = null, pollTimer = null;
+  let client = null, current = null, pollTimer = null, busy = false;
 
   const errMsg = (e) => { try { return (e && (e.message || e.code)) || (typeof e==='object' ? JSON.stringify(e) : String(e)); } catch(_) { return String(e); } };
   const toast = (t) => { const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); };
@@ -142,7 +144,7 @@
         </div>
       </div>
       <div class="actions">
-        <a class="btn btn-ghost" id="openBtn" href="${url}" target="_blank" rel="noopener">Open</a>
+        <button class="btn btn-ghost" id="openBtn">Open</button>
         <button class="btn btn-ghost" id="dlBtn">QR opslaan</button>
       </div>
       <div class="snippet">HTML-snippet:<code>${snippet.replace(/</g,'&lt;')}</code></div>
@@ -160,9 +162,27 @@
       }
     };
     $('url').onclick = () => { $('url').select(); };
+    $('openBtn').onclick = () => {
+      const w = window.open(url, '_blank', 'noopener');
+      if (!w) { // pop-up geblokkeerd in het panel-iframe → kopieer als fallback
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+          .then(()=>toast('Pop-up geblokkeerd — link gekopieerd'))
+          .catch(()=>toast('Pop-up geblokkeerd — kopieer de URL'));
+      }
+    };
     $('dlBtn').onclick = () => {
-      const cv = $('qr').querySelector('canvas'); if(!cv) return;
-      const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='qr-embed-link.png'; a.click();
+      const cv = $('qr').querySelector('canvas');
+      const im = $('qr').querySelector('img');
+      const dataUrl = cv ? cv.toDataURL('image/png') : (im ? im.src : null);
+      if (!dataUrl) { toast('Geen QR beschikbaar'); return; }
+      try {
+        const a=document.createElement('a'); a.href=dataUrl; a.download='qr-embed-link.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('QR opgeslagen');
+      } catch(_) {
+        const w = window.open(); if (w) w.document.write('<img src="'+dataUrl+'" alt="QR">');
+        else toast('Download geblokkeerd — rechtsklik de QR om op te slaan');
+      }
     };
     $('unpubBtn').onclick = unpublish;
   }
@@ -170,14 +190,17 @@
   function renderUnpublished(){
     hideStatus();
     $('content').innerHTML = `
-      <button class="btn btn-primary" id="pubBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
-        Publiceer als embed-link
-      </button>`;
+      <div class="pub-wrap">
+        <button class="btn btn-primary btn-auto" id="pubBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
+          Publiceer als embed-link
+        </button>
+      </div>`;
     $('pubBtn').onclick = publish;
   }
 
   function renderPending(statusText){
+    hideStatus();
     $('content').innerHTML = `<div class="row-status"><span class="spinner"></span><span>${statusText||'Bezig met publiceren…'}</span></div>`;
   }
 
@@ -197,6 +220,7 @@
   async function publish(){
     if(!current) return;
     const id = current.id;
+    busy = true;
     renderPending('Uploaden naar Bunny CDN…');
     try {
       // markeer als gepubliceerd (voor de registratie in Assets)
@@ -212,10 +236,12 @@
       try { await client.updateBulkById([id], { [cfg.CDN_URL_FIELD]: data.url, [cfg.CDN_STATUS_FIELD]: 'delivered' }); } catch(_){}
       renderPublished(data.url);
     } catch(e){ setStatus('Publiceren mislukt: '+errMsg(e), 'err'); }
+    finally { busy = false; }
   }
 
   async function unpublish(){
     if(!current) return;
+    busy = true;
     renderPending('Verwijderen…');
     try {
       await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false, [cfg.CDN_URL_FIELD]: '', [cfg.CDN_STATUS_FIELD]: 'deleted' });
@@ -223,6 +249,7 @@
       renderUnpublished();
       toast('Embed-link verwijderd');
     } catch(e){ setStatus('Verwijderen mislukt: '+errMsg(e), 'err'); }
+    finally { busy = false; }
   }
 
   function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
@@ -251,7 +278,7 @@
   (async () => {
     try {
       client = await Assets10Client.bootstrap({ handshakeTimeoutMs: 5000 });
-      const update = () => reflect((client.getSelection()||[])[0] || null);
+      const update = () => { if (busy) return; reflect((client.getSelection()||[])[0] || null); };
       update();
       client.onSelectionUpdate(() => update());
     } catch(err){
