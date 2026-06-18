@@ -164,16 +164,17 @@
     $('unpubBtn').onclick = unpublish;
   }
 
-  function renderUnpublished(){
+  function renderUnpublished(disabled){
     hideStatus();
     $('content').innerHTML = `
       <div class="pub-wrap">
-        <button class="btn btn-primary btn-share" id="pubBtn">
+        <button class="btn btn-primary btn-share" id="pubBtn" ${disabled ? 'disabled' : ''}>
           <span>Deel via CDN</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
         </button>
+        ${disabled ? '<div class="qr-hint">Selecteer eerst een asset</div>' : ''}
       </div>`;
-    $('pubBtn').onclick = publish;
+    if (!disabled) $('pubBtn').onclick = publish;
   }
 
   function renderPending(statusText){
@@ -184,7 +185,7 @@
   function reflect(asset){
     current = asset;
     showAsset(asset);
-    if(!asset){ hideStatus(); $('content').innerHTML='<div class="empty">Selecteer een asset om te delen.</div>'; return; }
+    if(!asset){ renderUnpublished(true); return; }
     // Synchroon model: alleen een aanwezige CDN-URL = gepubliceerd. Geen spinner op
     // basis van een (mogelijk verouderde) cf_cdnPublish-vlag.
     const md = asset.metadata || {};
