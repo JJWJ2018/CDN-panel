@@ -5,7 +5,10 @@ window.PLUGIN_CONFIG = {
   CDN_URL_FIELD: 'cf_cdnUrl',         // door de integratie ingevulde CDN-URL
   CDN_STATUS_FIELD: 'cf_cdnStatus',   // pending / delivered / failed / deleted
 
-  // Pollen op de CDN-URL nadat 'Publiceer' is gezet (de upload loopt async).
+  // Serverless upload-motor (zelfde Vercel-deployment).
+  API_PUBLISH_ENDPOINT: '/api/publish',
+
+  // Fallback-polling (alleen gebruikt als een externe motor cf_cdnUrl vult).
   POLL_INTERVAL_MS: 3000,
   POLL_TIMEOUT_MS: 90000,
 };

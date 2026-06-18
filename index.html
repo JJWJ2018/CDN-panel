@@ -109,6 +109,7 @@
   const $ = (id) => document.getElementById(id);
   let client = null, current = null, pollTimer = null;
 
+  const errMsg = (e) => { try { return (e && (e.message || e.code)) || (typeof e==='object' ? JSON.stringify(e) : String(e)); } catch(_) { return String(e); } };
   const toast = (t) => { const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); };
   const setStatus = (html, cls) => { const s=$('status'); s.style.display='block'; s.className='msg'+(cls?' '+cls:''); s.innerHTML=html; };
   const hideStatus = () => { $('status').style.display='none'; };
@@ -187,22 +188,32 @@
 
   async function publish(){
     if(!current) return;
-    renderPending('Publiceren gestart…');
+    const id = current.id;
+    renderPending('Uploaden naar Bunny CDN…');
     try {
-      await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: true });
-      startPoll(current.id);
-    } catch(e){ setStatus('Publiceren mislukt: '+(e&&e.message||e), 'err'); }
+      // markeer als gepubliceerd (voor de registratie in Assets)
+      try { await client.updateBulkById([id], { [cfg.CDN_PUBLISH_FIELD]: true }); } catch(_){}
+      // upload via de serverless functie
+      const r = await fetch(cfg.API_PUBLISH_ENDPOINT, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ assetId: id })
+      });
+      const data = await r.json().catch(()=>({}));
+      if (!r.ok || !data.url) throw new Error(data.error || ('upload mislukt, HTTP '+r.status));
+      // schrijf de CDN-URL + status terug
+      try { await client.updateBulkById([id], { [cfg.CDN_URL_FIELD]: data.url, [cfg.CDN_STATUS_FIELD]: 'delivered' }); } catch(_){}
+      renderPublished(data.url);
+    } catch(e){ setStatus('Publiceren mislukt: '+errMsg(e), 'err'); }
   }
 
   async function unpublish(){
     if(!current) return;
     renderPending('Verwijderen…');
     try {
-      await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false });
+      await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false, [cfg.CDN_URL_FIELD]: '', [cfg.CDN_STATUS_FIELD]: 'deleted' });
       stopPoll();
       renderUnpublished();
       toast('Embed-link verwijderd');
-    } catch(e){ setStatus('Verwijderen mislukt: '+(e&&e.message||e), 'err'); }
+    } catch(e){ setStatus('Verwijderen mislukt: '+errMsg(e), 'err'); }
   }
 
   function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
@@ -235,7 +246,7 @@
       update();
       client.onSelectionUpdate(() => update());
     } catch(err){
-      setStatus('Kon geen verbinding maken met Assets ('+(err&&err.message||err)+').', 'err');
+      setStatus('Kon geen verbinding maken met Assets ('+errMsg(err)+').', 'err');
     }
   })();
 </script>
