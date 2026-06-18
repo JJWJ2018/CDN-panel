@@ -54,6 +54,7 @@
   .actions { display:flex; gap:8px; margin-top:12px; }
   .actions .btn { width:auto; flex:1; }
   .qr-hint { margin-top:8px; text-align:center; font-size:11px; color:var(--dim); }
+  .empty { text-align:center; color:var(--dim); font-size:12.5px; padding:20px 0; }
   .snippet { margin-top:12px; font-size:11px; color:var(--muted); }
   .snippet code { display:block; margin-top:4px; background:var(--soft); border:1px solid var(--line);
     border-radius:8px; padding:8px 10px; white-space:pre-wrap; word-break:break-all; color:var(--text);
@@ -109,7 +110,7 @@
 
   const cfg = window.PLUGIN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
-  let client = null, current = null, pollTimer = null, busy = false;
+  let client = null, current = null, pollTimer = null, busy = false, busyId = null;
 
   const errMsg = (e) => { try { return (e && (e.message || e.code)) || (typeof e==='object' ? JSON.stringify(e) : String(e)); } catch(_) { return String(e); } };
   const toast = (t) => { const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); };
@@ -207,7 +208,7 @@
   function reflect(asset){
     current = asset;
     showAsset(asset);
-    if(!asset){ $('content').innerHTML=''; setStatus('Selecteer een asset om te publiceren.'); return; }
+    if(!asset){ hideStatus(); $('content').innerHTML='<div class="empty">Selecteer een asset om te delen.</div>'; return; }
     const md = asset.metadata || {};
     const url = md[cfg.CDN_URL_FIELD];
     const status = (md[cfg.CDN_STATUS_FIELD]||'').toLowerCase();
@@ -220,7 +221,7 @@
   async function publish(){
     if(!current) return;
     const id = current.id;
-    busy = true;
+    busy = true; busyId = id;
     renderPending('Uploaden naar Bunny CDN…');
     try {
       // markeer als gepubliceerd (voor de registratie in Assets)
@@ -236,12 +237,12 @@
       try { await client.updateBulkById([id], { [cfg.CDN_URL_FIELD]: data.url, [cfg.CDN_STATUS_FIELD]: 'delivered' }); } catch(_){}
       renderPublished(data.url);
     } catch(e){ setStatus('Publiceren mislukt: '+errMsg(e), 'err'); }
-    finally { busy = false; }
+    finally { busy = false; busyId = null; }
   }
 
   async function unpublish(){
     if(!current) return;
-    busy = true;
+    busy = true; busyId = current.id;
     renderPending('Verwijderen…');
     try {
       await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false, [cfg.CDN_URL_FIELD]: '', [cfg.CDN_STATUS_FIELD]: 'deleted' });
@@ -249,7 +250,7 @@
       renderUnpublished();
       toast('Embed-link verwijderd');
     } catch(e){ setStatus('Verwijderen mislukt: '+errMsg(e), 'err'); }
-    finally { busy = false; }
+    finally { busy = false; busyId = null; }
   }
 
   function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
@@ -278,7 +279,11 @@
   (async () => {
     try {
       client = await Assets10Client.bootstrap({ handshakeTimeoutMs: 5000 });
-      const update = () => { if (busy) return; reflect((client.getSelection()||[])[0] || null); };
+      const update = () => {
+        const sel = (client.getSelection()||[])[0] || null;
+        if (busy) { if (sel && sel.id === busyId) return; busy = false; busyId = null; }
+        reflect(sel);
+      };
       update();
       client.onSelectionUpdate(() => update());
     } catch(err){
