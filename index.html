@@ -85,7 +85,7 @@
     </span>
     <div>
       <h1>Embed link</h1>
-      <p>Publiceer dit asset als publieke CDN-link</p>
+      <p>Publish this asset as a public CDN link</p>
     </div>
   </div>
 
@@ -100,7 +100,7 @@
 
     <div id="content"></div>
 
-    <div class="msg" id="status">Verbinden met Assets…</div>
+    <div class="msg" id="status">Connecting to Assets…</div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -137,27 +137,27 @@
   function renderPublished(url){
     hideStatus();
     $('content').innerHTML = `
-      <div class="row-status"><span class="pill ok">● Gepubliceerd</span></div>
+      <div class="row-status"><span class="pill ok">● Published</span></div>
       <div class="qr" id="qr"></div>
       <div class="urlbox">
-        <label>Embed-URL</label>
+        <label>Embed URL</label>
         <div class="url">
           <input id="url" readonly value="${url}" />
-          <button id="copyBtn" title="Kopieer">Kopieer</button>
+          <button id="copyBtn" title="Copy">Copy</button>
         </div>
       </div>
-      <div class="qr-hint">Scan met je telefoon · of rechtsklik de QR om op te slaan</div>
-      <div style="margin-top:14px"><button class="btn btn-ghost" id="unpubBtn">Verwijder embed-link</button></div>
+      <div class="qr-hint">Scan with your phone · or right-click the QR to save</div>
+      <div style="margin-top:14px"><button class="btn btn-ghost" id="unpubBtn">Remove embed link</button></div>
     `;
     // QR via image-service (heeft een quiet zone → scanbaar)
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&data=' + encodeURIComponent(url);
     $('qr').innerHTML = '<img alt="QR-code" src="' + qrUrl + '">';
     $('copyBtn').onclick = async () => {
-      try { await navigator.clipboard.writeText(url); toast('Gekopieerd'); }
+      try { await navigator.clipboard.writeText(url); toast('Copied'); }
       catch(_) {
         const inp=$('url'); inp.focus(); inp.select();
-        try { document.execCommand('copy'); toast('Gekopieerd'); }
-        catch(e){ toast('Kopiëren geblokkeerd — selecteer handmatig'); }
+        try { document.execCommand('copy'); toast('Copied'); }
+        catch(e){ toast('Copy blocked — select manually'); }
       }
     };
     $('url').onclick = () => { $('url').select(); };
@@ -169,17 +169,17 @@
     $('content').innerHTML = `
       <div class="pub-wrap">
         <button class="btn btn-primary btn-share" id="pubBtn" ${disabled ? 'disabled' : ''}>
-          <span>Deel via CDN</span>
+          <span>Share via CDN</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
         </button>
-        ${disabled ? '<div class="qr-hint">Selecteer eerst een asset</div>' : ''}
+        ${disabled ? '<div class="qr-hint">Select an asset first</div>' : ''}
       </div>`;
     if (!disabled) $('pubBtn').onclick = publish;
   }
 
   function renderPending(statusText){
     hideStatus();
-    $('content').innerHTML = `<div class="row-status"><span class="spinner"></span><span>${statusText||'Bezig met publiceren…'}</span></div>`;
+    $('content').innerHTML = `<div class="row-status"><span class="spinner"></span><span>${statusText||'Publishing…'}</span></div>`;
   }
 
   function reflect(asset){
@@ -198,7 +198,7 @@
     if(!current) return;
     const id = current.id;
     busy = true; busyId = id;
-    renderPending('Uploaden naar Bunny CDN…');
+    renderPending('Uploading to Bunny CDN…');
     try {
       // markeer als gepubliceerd (voor de registratie in Assets)
       try { await client.updateBulkById([id], { [cfg.CDN_PUBLISH_FIELD]: true }); } catch(_){}
@@ -208,24 +208,24 @@
         method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ assetId: id, filename })
       });
       const data = await r.json().catch(()=>({}));
-      if (!r.ok || !data.url) throw new Error(data.error || ('upload mislukt, HTTP '+r.status));
+      if (!r.ok || !data.url) throw new Error(data.error || ('upload failed, HTTP '+r.status));
       // schrijf de CDN-URL + status terug
       try { await client.updateBulkById([id], { [cfg.CDN_URL_FIELD]: data.url, [cfg.CDN_STATUS_FIELD]: 'delivered' }); } catch(_){}
       renderPublished(data.url);
-    } catch(e){ setStatus('Publiceren mislukt: '+errMsg(e), 'err'); }
+    } catch(e){ setStatus('Publishing failed: '+errMsg(e), 'err'); }
     finally { busy = false; busyId = null; }
   }
 
   async function unpublish(){
     if(!current) return;
     busy = true; busyId = current.id;
-    renderPending('Verwijderen…');
+    renderPending('Removing…');
     try {
       await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false, [cfg.CDN_URL_FIELD]: '', [cfg.CDN_STATUS_FIELD]: 'deleted' });
       stopPoll();
       renderUnpublished();
-      toast('Embed-link verwijderd');
-    } catch(e){ setStatus('Verwijderen mislukt: '+errMsg(e), 'err'); }
+      toast('Embed link removed');
+    } catch(e){ setStatus('Removing failed: '+errMsg(e), 'err'); }
     finally { busy = false; busyId = null; }
   }
 
@@ -236,7 +236,7 @@
     stopPoll();
     const deadline = Date.now() + (cfg.POLL_TIMEOUT_MS||90000);
     pollTimer = setInterval(async () => {
-      if (Date.now() > deadline) { stopPoll(); setStatus('Nog geen CDN-URL ontvangen. Draait de Bunny-upload-integratie op deze omgeving?', 'warn'); return; }
+      if (Date.now() > deadline) { stopPoll(); setStatus('No CDN URL received yet. Is the Bunny upload integration running in this environment?', 'warn'); return; }
       try {
         const res = await client.search({ q: 'id:' + id });
         const hits = res?.hits || res?.items || (Array.isArray(res) ? res : []);
@@ -246,7 +246,7 @@
           const url = md[cfg.CDN_URL_FIELD];
           const st = (md[cfg.CDN_STATUS_FIELD]||'').toLowerCase();
           if (url) { renderPublished(url); }
-          else if (st === 'failed') { stopPoll(); setStatus('Publiceren mislukt (CDN status: failed).', 'err'); }
+          else if (st === 'failed') { stopPoll(); setStatus('Publishing failed (CDN status: failed).', 'err'); }
         }
       } catch(e){ /* search-vorm kan per omgeving verschillen; stil blijven pollen */ }
     }, cfg.POLL_INTERVAL_MS||3000);
@@ -263,7 +263,7 @@
       update();
       client.onSelectionUpdate(() => update());
     } catch(err){
-      setStatus('Kon geen verbinding maken met Assets ('+errMsg(err)+').', 'err');
+      setStatus('Could not connect to Assets ('+errMsg(err)+').', 'err');
     }
   })();
 </script>
