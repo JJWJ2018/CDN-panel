@@ -36,6 +36,7 @@
   .btn-primary { background:var(--accent); color:#fff; }
   .btn-primary:hover { background:#0277b6; }
   .btn-auto { width:auto; padding:9px 18px; }
+  .btn-share { width:auto; min-width:210px; padding:8px 16px; justify-content:space-between; }
   .pub-wrap { text-align:center; padding:6px 0; }
   .btn-ghost { background:transparent; color:var(--text); border-color:var(--line); }
   .btn-ghost:hover { background:var(--soft); }
@@ -111,6 +112,9 @@
   const cfg = window.PLUGIN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   let client = null, current = null, pollTimer = null, busy = false, busyId = null;
+
+  // Accentkleur toepassen (uit config; kan op de branding-highlight gezet worden).
+  if (cfg.BRAND_COLOR) document.documentElement.style.setProperty('--accent', cfg.BRAND_COLOR);
 
   const errMsg = (e) => { try { return (e && (e.message || e.code)) || (typeof e==='object' ? JSON.stringify(e) : String(e)); } catch(_) { return String(e); } };
   const toast = (t) => { const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); };
@@ -192,9 +196,9 @@
     hideStatus();
     $('content').innerHTML = `
       <div class="pub-wrap">
-        <button class="btn btn-primary btn-auto" id="pubBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
-          Deel via CDN
+        <button class="btn btn-primary btn-share" id="pubBtn">
+          <span>Deel via CDN</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
         </button>
       </div>`;
     $('pubBtn').onclick = publish;

@@ -5,6 +5,10 @@ window.PLUGIN_CONFIG = {
   CDN_URL_FIELD: 'cf_cdnUrl',         // door de integratie ingevulde CDN-URL
   CDN_STATUS_FIELD: 'cf_cdnStatus',   // pending / delivered / failed / deleted
 
+  // Accentkleur van de plugin. Zet op de branding-highlight van je tenant indien gewenst.
+  // (Demo-tenant ww-dam-demo heeft highlight = #000000; default hier = WoodWing-blauw.)
+  BRAND_COLOR: '#0396e0',
+
   // Serverless upload-motor (zelfde Vercel-deployment).
   API_PUBLISH_ENDPOINT: '/api/publish',
 
