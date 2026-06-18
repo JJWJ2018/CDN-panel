@@ -53,6 +53,7 @@
   .qr img, .qr canvas { width:160px !important; height:160px !important; }
   .actions { display:flex; gap:8px; margin-top:12px; }
   .actions .btn { width:auto; flex:1; }
+  .qr-hint { margin-top:8px; text-align:center; font-size:11px; color:var(--dim); }
   .snippet { margin-top:12px; font-size:11px; color:var(--muted); }
   .snippet code { display:block; margin-top:4px; background:var(--soft); border:1px solid var(--line);
     border-radius:8px; padding:8px 10px; white-space:pre-wrap; word-break:break-all; color:var(--text);
@@ -102,7 +103,6 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="./config.js"></script>
 <script type="module">
   import { Assets10Client } from 'https://unpkg.com/@woodwing/a10-client-sdk@1.0.0/dist/index.mjs';
@@ -147,12 +147,13 @@
         <button class="btn btn-ghost" id="openBtn">Open</button>
         <button class="btn btn-ghost" id="dlBtn">QR opslaan</button>
       </div>
+      <div class="qr-hint">Scan met je telefoon · of rechtsklik de QR om op te slaan</div>
       <div class="snippet">HTML-snippet:<code>${snippet.replace(/</g,'&lt;')}</code></div>
       <div style="margin-top:14px"><button class="btn btn-ghost" id="unpubBtn">Verwijder embed-link</button></div>
     `;
-    // QR
-    $('qr').innerHTML='';
-    new QRCode($('qr'), { text:url, width:160, height:160, correctLevel: QRCode.CorrectLevel.M });
+    // QR via image-service (heeft een quiet zone → scanbaar)
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&data=' + encodeURIComponent(url);
+    $('qr').innerHTML = '<img alt="QR-code" src="' + qrUrl + '">';
     $('copyBtn').onclick = async () => {
       try { await navigator.clipboard.writeText(url); toast('Gekopieerd'); }
       catch(_) {
@@ -170,18 +171,17 @@
           .catch(()=>toast('Pop-up geblokkeerd — kopieer de URL'));
       }
     };
-    $('dlBtn').onclick = () => {
-      const cv = $('qr').querySelector('canvas');
-      const im = $('qr').querySelector('img');
-      const dataUrl = cv ? cv.toDataURL('image/png') : (im ? im.src : null);
-      if (!dataUrl) { toast('Geen QR beschikbaar'); return; }
+    $('dlBtn').onclick = async () => {
       try {
-        const a=document.createElement('a'); a.href=dataUrl; a.download='qr-embed-link.png';
+        const blob = await fetch(qrUrl).then(r => r.blob());
+        const obj = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = obj; a.download = 'qr-embed-link.png';
         document.body.appendChild(a); a.click(); a.remove();
-        toast('QR opgeslagen');
-      } catch(_) {
-        const w = window.open(); if (w) w.document.write('<img src="'+dataUrl+'" alt="QR">');
-        else toast('Download geblokkeerd — rechtsklik de QR om op te slaan');
+        setTimeout(() => URL.revokeObjectURL(obj), 4000);
+        toast('QR gedownload (check Downloads)');
+      } catch (_) {
+        const w = window.open(qrUrl, '_blank');
+        if (!w) toast('Opslaan geblokkeerd — rechtsklik de QR');
       }
     };
     $('unpubBtn').onclick = unpublish;
@@ -193,7 +193,7 @@
       <div class="pub-wrap">
         <button class="btn btn-primary btn-auto" id="pubBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
-          Publiceer als embed-link
+          Deel via CDN
         </button>
       </div>`;
     $('pubBtn').onclick = publish;
