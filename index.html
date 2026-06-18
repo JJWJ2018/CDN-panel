@@ -151,7 +151,15 @@
     // QR
     $('qr').innerHTML='';
     new QRCode($('qr'), { text:url, width:160, height:160, correctLevel: QRCode.CorrectLevel.M });
-    $('copyBtn').onclick = () => { navigator.clipboard.writeText(url).then(()=>toast('Gekopieerd')); };
+    $('copyBtn').onclick = async () => {
+      try { await navigator.clipboard.writeText(url); toast('Gekopieerd'); }
+      catch(_) {
+        const inp=$('url'); inp.focus(); inp.select();
+        try { document.execCommand('copy'); toast('Gekopieerd'); }
+        catch(e){ toast('Kopiëren geblokkeerd — selecteer handmatig'); }
+      }
+    };
+    $('url').onclick = () => { $('url').select(); };
     $('dlBtn').onclick = () => {
       const cv = $('qr').querySelector('canvas'); if(!cv) return;
       const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='qr-embed-link.png'; a.click();
