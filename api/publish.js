@@ -59,9 +59,12 @@ module.exports = async (req, res) => {
     });
     if (upR.status !== 201 && upR.status !== 200) throw new Error('Bunny upload mislukt (HTTP ' + upR.status + ')');
 
-    // 4. Publieke CDN-URL teruggeven
+    // 4. Publieke CDN-URL teruggeven.
+    // De Pull Zone serveert onder de storage-zone-naam (…/<zone>/<bestand>).
+    // Met BUNNY_PUBLIC_PREFIX='' kun je dat uitzetten als je later op root serveert.
     const host = BUNNY_PULLZONE_HOST.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const url = 'https://' + host + '/' + objectPath;
+    const prefix = (process.env.BUNNY_PUBLIC_PREFIX !== undefined ? process.env.BUNNY_PUBLIC_PREFIX : BUNNY_STORAGE_ZONE).replace(/^\/+|\/+$/g, '');
+    const url = 'https://' + host + '/' + (prefix ? prefix + '/' : '') + objectPath;
     return res.status(200).json({ url, filename: String(filename) });
   } catch (e) {
     return res.status(502).json({ error: String((e && e.message) || e) });
