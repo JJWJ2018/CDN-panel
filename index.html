@@ -136,8 +136,6 @@
 
   function renderPublished(url){
     hideStatus();
-    stopPoll();
-    const snippet = '<img src="'+url+'" alt="" />';
     $('content').innerHTML = `
       <div class="row-status"><span class="pill ok">● Gepubliceerd</span></div>
       <div class="qr" id="qr"></div>
@@ -148,12 +146,7 @@
           <button id="copyBtn" title="Kopieer">Kopieer</button>
         </div>
       </div>
-      <div class="actions">
-        <button class="btn btn-ghost" id="openBtn">Open</button>
-        <button class="btn btn-ghost" id="dlBtn">QR opslaan</button>
-      </div>
       <div class="qr-hint">Scan met je telefoon · of rechtsklik de QR om op te slaan</div>
-      <div class="snippet">HTML-snippet:<code>${snippet.replace(/</g,'&lt;')}</code></div>
       <div style="margin-top:14px"><button class="btn btn-ghost" id="unpubBtn">Verwijder embed-link</button></div>
     `;
     // QR via image-service (heeft een quiet zone → scanbaar)
@@ -168,27 +161,6 @@
       }
     };
     $('url').onclick = () => { $('url').select(); };
-    $('openBtn').onclick = () => {
-      const w = window.open(url, '_blank', 'noopener');
-      if (!w) { // pop-up geblokkeerd in het panel-iframe → kopieer als fallback
-        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
-          .then(()=>toast('Pop-up geblokkeerd — link gekopieerd'))
-          .catch(()=>toast('Pop-up geblokkeerd — kopieer de URL'));
-      }
-    };
-    $('dlBtn').onclick = async () => {
-      try {
-        const blob = await fetch(qrUrl).then(r => r.blob());
-        const obj = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = obj; a.download = 'qr-embed-link.png';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(obj), 4000);
-        toast('QR gedownload (check Downloads)');
-      } catch (_) {
-        const w = window.open(qrUrl, '_blank');
-        if (!w) toast('Opslaan geblokkeerd — rechtsklik de QR');
-      }
-    };
     $('unpubBtn').onclick = unpublish;
   }
 
@@ -198,7 +170,7 @@
       <div class="pub-wrap">
         <button class="btn btn-primary btn-share" id="pubBtn">
           <span>Deel via CDN</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
         </button>
       </div>`;
     $('pubBtn').onclick = publish;
@@ -213,13 +185,12 @@
     current = asset;
     showAsset(asset);
     if(!asset){ hideStatus(); $('content').innerHTML='<div class="empty">Selecteer een asset om te delen.</div>'; return; }
+    // Synchroon model: alleen een aanwezige CDN-URL = gepubliceerd. Geen spinner op
+    // basis van een (mogelijk verouderde) cf_cdnPublish-vlag.
     const md = asset.metadata || {};
     const url = md[cfg.CDN_URL_FIELD];
-    const status = (md[cfg.CDN_STATUS_FIELD]||'').toLowerCase();
-    const published = md[cfg.CDN_PUBLISH_FIELD] === true || md[cfg.CDN_PUBLISH_FIELD] === 'true';
-    if (url && (status==='delivered' || status==='')) { renderPublished(url); }
-    else if (published || status==='pending') { renderPending(); startPoll(asset.id); }
-    else { renderUnpublished(); }
+    if (url) renderPublished(url);
+    else renderUnpublished();
   }
 
   async function publish(){
