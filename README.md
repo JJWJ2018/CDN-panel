@@ -1,0 +1,2 @@
+# CDN-panel
+CDN panel
