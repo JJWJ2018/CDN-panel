@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Embed link</title>
+<style>
+  :root {
+    --bg:#fff; --soft:#f6f7f9; --line:#e8eaed; --text:#1a1d21; --muted:#6b7280;
+    --dim:#9aa1ab; --accent:#2563eb; --accent-50:#eef3ff; --green:#0f9d58; --red:#d23f31;
+    --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .wrap { display:flex; flex-direction:column; height:100vh; }
+  .head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .head .badge { width:30px; height:30px; border-radius:8px; background:var(--accent-50); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; flex:none; }
+  .head .badge svg { width:17px; height:17px; }
+  .head h1 { font-size:14px; font-weight:600; margin:0; }
+  .head p { font-size:11.5px; color:var(--dim); margin:1px 0 0; }
+  .body { padding:14px 16px; overflow-y:auto; flex:1; }
+
+  .asset { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .asset .thumb { width:40px; height:40px; border-radius:8px; object-fit:cover; background:var(--soft);
+    border:1px solid var(--line); flex:none; }
+  .asset .name { font-size:13px; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .asset .sub { font-size:11.5px; color:var(--muted); margin:1px 0 0; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; width:100%;
+    border:1px solid transparent; border-radius:9px; padding:10px 14px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:background 120ms,border-color 120ms; }
+  .btn svg { width:15px; height:15px; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:#1d5fe0; }
+  .btn-ghost { background:transparent; color:var(--text); border-color:var(--line); }
+  .btn-ghost:hover { background:var(--soft); }
+  .btn[disabled] { opacity:.55; cursor:default; }
+
+  .urlbox { margin-top:14px; }
+  .urlbox label { font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .url { display:flex; gap:6px; margin-top:6px; }
+  .url input { flex:1; min-width:0; font-size:11.5px; padding:8px 10px; border:1px solid var(--line);
+    border-radius:8px; background:var(--soft); color:var(--text); font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .url button { flex:none; border:1px solid var(--line); background:#fff; border-radius:8px; padding:0 10px;
+    cursor:pointer; font-size:12px; }
+  .qr { margin:16px auto 6px; width:180px; height:180px; display:flex; align-items:center; justify-content:center;
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .qr img, .qr canvas { width:160px !important; height:160px !important; }
+  .actions { display:flex; gap:8px; margin-top:12px; }
+  .actions .btn { width:auto; flex:1; }
+  .snippet { margin-top:12px; font-size:11px; color:var(--muted); }
+  .snippet code { display:block; margin-top:4px; background:var(--soft); border:1px solid var(--line);
+    border-radius:8px; padding:8px 10px; white-space:pre-wrap; word-break:break-all; color:var(--text);
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; }
+
+  .msg { font-size:12.5px; color:var(--muted); background:var(--soft); border:1px solid var(--line);
+    padding:14px; border-radius:var(--radius); line-height:1.5; text-align:center; }
+  .msg.warn { background:#fff8ec; border-color:#fde4b3; color:#7a5a16; }
+  .msg.err { background:#fdecea; border-color:#f5c6c0; color:#8a2b22; }
+  .row-status { display:flex; align-items:center; gap:8px; justify-content:center; font-size:12.5px; color:var(--muted); margin-top:8px; }
+  .spinner { width:14px; height:14px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--accent);
+    animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; padding:3px 9px;
+    border-radius:999px; }
+  .pill.ok { background:#e7f6ee; color:var(--green); }
+  .toast { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:#1a1d21; color:#fff;
+    font-size:12px; padding:7px 12px; border-radius:8px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <span class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    </span>
+    <div>
+      <h1>Embed link</h1>
+      <p>Publiceer dit asset als publieke CDN-link</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="asset" id="assetRow" style="display:none;">
+      <img class="thumb" id="thumb" alt="" />
+      <div style="min-width:0">
+        <p class="name" id="assetName">—</p>
+        <p class="sub" id="assetSub"></p>
+      </div>
+    </div>
+
+    <div id="content"></div>
+
+    <div class="msg" id="status">Verbinden met Assets…</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="./config.js"></script>
+<script type="module">
+  import { Assets10Client } from 'https://unpkg.com/@woodwing/a10-client-sdk@1.0.0/dist/index.mjs';
+
+  const cfg = window.PLUGIN_CONFIG || {};
+  const $ = (id) => document.getElementById(id);
+  let client = null, current = null, pollTimer = null;
+
+  const toast = (t) => { const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); };
+  const setStatus = (html, cls) => { const s=$('status'); s.style.display='block'; s.className='msg'+(cls?' '+cls:''); s.innerHTML=html; };
+  const hideStatus = () => { $('status').style.display='none'; };
+
+  function fmtBytes(b){ b=Number(b); if(!b||isNaN(b))return''; if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+
+  function showAsset(asset){
+    if(!asset){ $('assetRow').style.display='none'; return; }
+    const md=asset.metadata||{};
+    $('assetRow').style.display='flex';
+    $('assetName').textContent = md.filename || md['dc:title'] || asset.id || 'Asset';
+    $('assetSub').textContent = [ (md.filename||'').split('.').pop()?.toUpperCase(), fmtBytes(md.fileSize) ].filter(Boolean).join(' · ');
+    const thumb=$('thumb');
+    if(asset.thumbnailUrl){ thumb.src=asset.thumbnailUrl; thumb.style.display='block'; thumb.onerror=()=>thumb.style.display='none'; }
+    else thumb.style.display='none';
+  }
+
+  function renderPublished(url){
+    hideStatus();
+    stopPoll();
+    const snippet = '<img src="'+url+'" alt="" />';
+    $('content').innerHTML = `
+      <div class="row-status"><span class="pill ok">● Gepubliceerd</span></div>
+      <div class="qr" id="qr"></div>
+      <div class="urlbox">
+        <label>Embed-URL</label>
+        <div class="url">
+          <input id="url" readonly value="${url}" />
+          <button id="copyBtn" title="Kopieer">Kopieer</button>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-ghost" id="openBtn" href="${url}" target="_blank" rel="noopener">Open</a>
+        <button class="btn btn-ghost" id="dlBtn">QR opslaan</button>
+      </div>
+      <div class="snippet">HTML-snippet:<code>${snippet.replace(/</g,'&lt;')}</code></div>
+      <div style="margin-top:14px"><button class="btn btn-ghost" id="unpubBtn">Verwijder embed-link</button></div>
+    `;
+    // QR
+    $('qr').innerHTML='';
+    new QRCode($('qr'), { text:url, width:160, height:160, correctLevel: QRCode.CorrectLevel.M });
+    $('copyBtn').onclick = () => { navigator.clipboard.writeText(url).then(()=>toast('Gekopieerd')); };
+    $('dlBtn').onclick = () => {
+      const cv = $('qr').querySelector('canvas'); if(!cv) return;
+      const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='qr-embed-link.png'; a.click();
+    };
+    $('unpubBtn').onclick = unpublish;
+  }
+
+  function renderUnpublished(){
+    hideStatus();
+    $('content').innerHTML = `
+      <button class="btn btn-primary" id="pubBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m6 9 6-6 6 6"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
+        Publiceer als embed-link
+      </button>`;
+    $('pubBtn').onclick = publish;
+  }
+
+  function renderPending(statusText){
+    $('content').innerHTML = `<div class="row-status"><span class="spinner"></span><span>${statusText||'Bezig met publiceren…'}</span></div>`;
+  }
+
+  function reflect(asset){
+    current = asset;
+    showAsset(asset);
+    if(!asset){ $('content').innerHTML=''; setStatus('Selecteer een asset om te publiceren.'); return; }
+    const md = asset.metadata || {};
+    const url = md[cfg.CDN_URL_FIELD];
+    const status = (md[cfg.CDN_STATUS_FIELD]||'').toLowerCase();
+    const published = md[cfg.CDN_PUBLISH_FIELD] === true || md[cfg.CDN_PUBLISH_FIELD] === 'true';
+    if (url && (status==='delivered' || status==='')) { renderPublished(url); }
+    else if (published || status==='pending') { renderPending(); startPoll(asset.id); }
+    else { renderUnpublished(); }
+  }
+
+  async function publish(){
+    if(!current) return;
+    renderPending('Publiceren gestart…');
+    try {
+      await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: true });
+      startPoll(current.id);
+    } catch(e){ setStatus('Publiceren mislukt: '+(e&&e.message||e), 'err'); }
+  }
+
+  async function unpublish(){
+    if(!current) return;
+    renderPending('Verwijderen…');
+    try {
+      await client.updateBulkById([current.id], { [cfg.CDN_PUBLISH_FIELD]: false });
+      stopPoll();
+      renderUnpublished();
+      toast('Embed-link verwijderd');
+    } catch(e){ setStatus('Verwijderen mislukt: '+(e&&e.message||e), 'err'); }
+  }
+
+  function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
+
+  // Pollt op de CDN-URL via een search op asset-id (de upload loopt async).
+  function startPoll(id){
+    stopPoll();
+    const deadline = Date.now() + (cfg.POLL_TIMEOUT_MS||90000);
+    pollTimer = setInterval(async () => {
+      if (Date.now() > deadline) { stopPoll(); setStatus('Nog geen CDN-URL ontvangen. Draait de Bunny-upload-integratie op deze omgeving?', 'warn'); return; }
+      try {
+        const res = await client.search({ q: 'id:' + id });
+        const hits = res?.hits || res?.items || (Array.isArray(res) ? res : []);
+        const a = hits && hits[0];
+        const md = a && a.metadata;
+        if (md) {
+          const url = md[cfg.CDN_URL_FIELD];
+          const st = (md[cfg.CDN_STATUS_FIELD]||'').toLowerCase();
+          if (url) { renderPublished(url); }
+          else if (st === 'failed') { stopPoll(); setStatus('Publiceren mislukt (CDN status: failed).', 'err'); }
+        }
+      } catch(e){ /* search-vorm kan per omgeving verschillen; stil blijven pollen */ }
+    }, cfg.POLL_INTERVAL_MS||3000);
+  }
+
+  (async () => {
+    try {
+      client = await Assets10Client.bootstrap({ handshakeTimeoutMs: 5000 });
+      const update = () => reflect((client.getSelection()||[])[0] || null);
+      update();
+      client.onSelectionUpdate(() => update());
+    } catch(err){
+      setStatus('Kon geen verbinding maken met Assets ('+(err&&err.message||err)+').', 'err');
+    }
+  })();
+</script>
+</body>
+</html>
